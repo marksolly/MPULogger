@@ -9,10 +9,11 @@
 
 // Button states
 enum ButtonState {
-  IDLE,
-  PRESSED,
-  DEBOUNCE,
-  RELEASED
+  IDLE,                    // Waiting for button press
+  DEBOUNCE_PRESSED,         // Debounce the initial press
+  PRESSED_HOLD,            // Button confirmed pressed, timing for long press
+  DEBOUNCE_RELEASED,       // Debounce the release
+  RELEASED_INHIBIT          // Wait period before allowing next press
 };
 
 // Button events
@@ -51,17 +52,13 @@ class ButtonControlTask : public Task {
     ButtonState state = IDLE;
     unsigned long pressStartTime = 0;
     unsigned long lastDebounceTime = 0;
-    bool currentButtonState = HIGH;  // INPUT_PULLUP means HIGH = not pressed
+    unsigned long releaseTime = 0;  // Track when button was released for inhibition
     
     // Event storage
     ButtonEvent pendingEvent = NONE;
     
     // Internal methods
     void updateButtonState();
-    void handleDebounce();
-    void handlePress();
-    void handleRelease();
-    void generateEvent();
 };
 
 #endif

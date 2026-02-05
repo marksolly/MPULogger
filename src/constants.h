@@ -27,6 +27,7 @@
 
 // Timing Configuration
 #define BUTTON_DEBOUNCE_MS 50
+#define BUTTON_RELEASE_INHIBIT_MS 200  // Required quiet time after release
 #define CALIBRATION_SAMPLES 100
 #define CALIBRATION_HOLD_MS 3000   // 3 seconds
 
