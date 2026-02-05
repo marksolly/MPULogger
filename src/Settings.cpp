@@ -97,3 +97,70 @@ String Settings::toJSON() {
   serializeJson(doc, output);
   return output;
 }
+
+// Calibration storage operations
+bool Settings::loadCalibrationFromEEPROM() {
+  CalibrationData calData;
+  
+  if (!eepromManager.begin()) {
+    return false;
+  }
+  
+  if (eepromManager.loadCalibrationData(calData)) {
+    Serial.println(F("Calibration data loaded from EEPROM"));
+    return true;
+  }
+  
+  Serial.println(F("No valid calibration data found in EEPROM"));
+  return false;
+}
+
+bool Settings::saveCalibrationToEEPROM(float accelX, float accelY, float accelZ, 
+                                     float gyroX, float gyroY, float gyroZ) {
+  if (!eepromManager.begin()) {
+    return false;
+  }
+  
+  CalibrationData calData = {0};
+  calData.accelOffsetX = accelX;
+  calData.accelOffsetY = accelY;
+  calData.accelOffsetZ = accelZ;
+  calData.gyroOffsetX = gyroX;
+  calData.gyroOffsetY = gyroY;
+  calData.gyroOffsetZ = gyroZ;
+  
+  if (eepromManager.saveCalibrationData(calData)) {
+    Serial.println(F("Calibration data saved to EEPROM"));
+    return true;
+  }
+  
+  Serial.println(F("Failed to save calibration data to EEPROM"));
+  return false;
+}
+
+bool Settings::isCalibrationDataAvailable() {
+  if (!eepromManager.begin()) {
+    return false;
+  }
+  
+  CalibrationData calData;
+  return eepromManager.loadCalibrationData(calData);
+}
+
+void Settings::getCalibrationData(float& accelX, float& accelY, float& accelZ,
+                                float& gyroX, float& gyroY, float& gyroZ) {
+  CalibrationData calData = {0};
+  
+  if (eepromManager.begin() && eepromManager.loadCalibrationData(calData)) {
+    accelX = calData.accelOffsetX;
+    accelY = calData.accelOffsetY;
+    accelZ = calData.accelOffsetZ;
+    gyroX = calData.gyroOffsetX;
+    gyroY = calData.gyroOffsetY;
+    gyroZ = calData.gyroOffsetZ;
+  } else {
+    // Return zeros if no valid calibration data
+    accelX = accelY = accelZ = 0.0;
+    gyroX = gyroY = gyroZ = 0.0;
+  }
+}

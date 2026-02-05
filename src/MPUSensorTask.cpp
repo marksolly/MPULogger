@@ -1,6 +1,10 @@
 #include "MPUSensorTask.h"
 #include "DataLoggingTask.h"
 #include "BuzzerFeedbackTask.h"
+#include "Settings.h"
+
+// Global settings instance
+extern Settings settings;
 
 MPUSensorTask::MPUSensorTask(DataLoggingTask* dataLogger) 
   : dataLogger(dataLogger) {
@@ -16,6 +20,11 @@ void MPUSensorTask::run() {
       applyOffsets();
       isCalibrating = false;
       isCalibrated = true;
+      calibrationStatus = CALIBRATED;
+      
+      // Save calibration to EEPROM
+      saveCalibration();
+      
       Serial.println(F("Calibration complete"));
       
       // Play calibration complete tone
@@ -52,7 +61,7 @@ void MPUSensorTask::startCalibration() {
   
   // Reset FIFO to start fresh calibration
   // Note: Adafruit MPU6050 doesn't have resetFIFO method
-  // We'll work with the available methods
+  // We'll work with available methods
   
   Serial.println(F("Starting calibration..."));
 }
@@ -102,6 +111,46 @@ void MPUSensorTask::applyOffsets() {
   // Calibration offsets are now applied in updateSensorData()
   // This method can be used for any hardware-level calibration if needed
   Serial.println(F("Applied calibration offsets"));
+}
+
+bool MPUSensorTask::loadSavedCalibration() {
+  if (settings.isCalibrationDataAvailable()) {
+    settings.getCalibrationData(accel_offset_x, accel_offset_y, accel_offset_z,
+                                gyro_offset_x, gyro_offset_y, gyro_offset_z);
+    
+    isCalibrated = true;
+    calibrationStatus = USING_SAVED;
+    
+    Serial.println(F("Loaded saved calibration from EEPROM"));
+    Serial.print(F("Loaded offsets - Accel: "));
+    Serial.print(accel_offset_x); Serial.print(F(", "));
+    Serial.print(accel_offset_y); Serial.print(F(", "));
+    Serial.print(accel_offset_z);
+    Serial.print(F(" | Gyro: "));
+    Serial.print(gyro_offset_x); Serial.print(F(", "));
+    Serial.print(gyro_offset_y); Serial.print(F(", "));
+    Serial.println(gyro_offset_z);
+    
+    return true;
+  }
+  
+  Serial.println(F("No saved calibration found in EEPROM"));
+  return false;
+}
+
+bool MPUSensorTask::saveCalibration() {
+  if (settings.saveCalibrationToEEPROM(accel_offset_x, accel_offset_y, accel_offset_z,
+                                       gyro_offset_x, gyro_offset_y, gyro_offset_z)) {
+    Serial.println(F("Calibration saved to EEPROM"));
+    return true;
+  }
+  
+  Serial.println(F("Failed to save calibration to EEPROM"));
+  return false;
+}
+
+CalibrationStatus MPUSensorTask::getCalibrationStatus() const {
+  return calibrationStatus;
 }
 
 void MPUSensorTask::updateSensorData() {
@@ -154,6 +203,9 @@ bool MPUSensorTask::initFIFO() {
   mpu.setAccelerometerRange(MPU6050_ACCEL_RANGE);
   mpu.setGyroRange(MPU6050_GYRO_RANGE);
   mpu.setFilterBandwidth(MPU6050_BANDWIDTH);
+  
+  // Try to load saved calibration on initialization
+  loadSavedCalibration();
   
   // Note: Adafruit MPU6050 library has limited FIFO support
   // We'll use direct sensor reading instead

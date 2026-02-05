@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <FS.h>
 #include "ArduinoJSON/ArduinoJson-v6.18.3.h"
+#include "EEPROMManager.h"
 
 class Settings {
   public:
@@ -25,12 +26,23 @@ class Settings {
     // Configuration helpers
     void setDefaults();
     
+    // Calibration storage operations
+    bool loadCalibrationFromEEPROM();
+    bool saveCalibrationToEEPROM(float accelX, float accelY, float accelZ, 
+                                 float gyroX, float gyroY, float gyroZ);
+    bool isCalibrationDataAvailable();
+    void getCalibrationData(float& accelX, float& accelY, float& accelZ,
+                           float& gyroX, float& gyroY, float& gyroZ);
+    
   private:
     static const unsigned int JSON_MEMORY_ALLOC = 1024;
     const char* configFileName = "/settings.json";
     
     bool applyFromJSON(const String& jsonStr);
     String toJSON();
+    
+    // EEPROM manager instance
+    EEPROMManager eepromManager;
 };
 
 #endif

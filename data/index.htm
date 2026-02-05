@@ -10,6 +10,8 @@
     .label { font-size: 0.9rem; color: #666; }
     .status { padding: 10px; border-radius: 4px; margin: 5px 0; }
     .status.calibrated { background-color: #d4edda; color: #155724; }
+    .status.using-saved { background-color: #cce5ff; color: #004085; }
+    .status.uncalibrated { background-color: #f8d7da; color: #721c24; }
     .status.recording { background-color: #f8d7da; color: #721c24; }
     .status.generating { background-color: #fff3cd; color: #856404; }
     .status.success { background-color: #d1ecf1; color: #0c5460; }
@@ -152,11 +154,32 @@
     var calibratedStatus = document.getElementById("calibrated-status");
     var recordingStatus = document.getElementById("recording-status");
 
-    if (data.calibrated) {
+    // Handle detailed calibration status
+    if (data.calibrationStatus) {
+      switch (data.calibrationStatus) {
+        case "Calibrated":
+          calibratedEl.className = "status calibrated";
+          calibratedStatus.innerHTML = "Calibrated";
+          break;
+        case "Using Saved Calibration":
+          calibratedEl.className = "status using-saved";
+          calibratedStatus.innerHTML = "Using Saved Calibration";
+          break;
+        case "Uncalibrated":
+          calibratedEl.className = "status uncalibrated";
+          calibratedStatus.innerHTML = "Uncalibrated";
+          break;
+        default:
+          calibratedEl.className = "status";
+          calibratedStatus.innerHTML = data.calibrationStatus;
+          break;
+      }
+    } else if (data.calibrated) {
+      // Fallback to boolean for backward compatibility
       calibratedEl.className = "status calibrated";
       calibratedStatus.innerHTML = "Calibrated";
     } else {
-      calibratedEl.className = "status";
+      calibratedEl.className = "status uncalibrated";
       calibratedStatus.innerHTML = "Not Calibrated";
     }
 

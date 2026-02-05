@@ -1,6 +1,7 @@
 #include "WebStreamingTask.h"
 #include "MPUSensorTask.h"
 #include "DataLoggingTask.h"
+#include "constants.h"
 
 WebStreamingTask::WebStreamingTask(MPUSensorTask& mpuSensor, DataLoggingTask& dataLogger)
   : Task(), // Use default constructor
@@ -145,6 +146,7 @@ String WebStreamingTask::createJsonMessage() {
   json += "},";
   json += "\"recording\":" + String(dataLogger.isRecording() ? "true" : "false") + ",";
   json += "\"calibrated\":" + String(mpuSensor.isCalibrated ? "true" : "false") + ",";
+  json += "\"calibrationStatus\":\"" + getCalibrationStatusString(mpuSensor.getCalibrationStatus()) + "\",";
   json += "\"fifoCount\":" + String(mpuSensor.fifoCount);
   json += "}";
   
@@ -224,5 +226,18 @@ void WebStreamingTask::broadcastClientCount() {
       clients[i]->send(countMsg.c_str(), "client_count", millis());
       lastActivityTime[i] = millis();
     }
+  }
+}
+
+String WebStreamingTask::getCalibrationStatusString(CalibrationStatus status) {
+  switch (status) {
+    case UNCALIBRATED:
+      return "Uncalibrated";
+    case CALIBRATED:
+      return "Calibrated";
+    case USING_SAVED:
+      return "Using Saved Calibration";
+    default:
+      return "Unknown";
   }
 }

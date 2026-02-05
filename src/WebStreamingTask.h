@@ -51,6 +51,7 @@ class WebStreamingTask : public Task {
     // Data formatting helpers
     String formatFloat(float value, int decimalPlaces);
     String createJsonMessage();
+    String getCalibrationStatusString(CalibrationStatus status);
     
     // Client management
     static const int MAX_CLIENTS = WEB_CLIENT_MAX;

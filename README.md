@@ -28,6 +28,10 @@ A high-performance ESP8266-based data logging system for MPU6050 IMU sensors wit
 - **Audio Feedback**: Different piezo buzzer tones for each operation
 - **Test Data Generation**: Built-in test data generation for system validation
 
+### Calibration Storage
+
+- **Persistent Calibration**: Automatic saving of calibration offsets to EEPROM
+- **Automatic Loading**: Calibration data loads automatically on system boot
 ## Hardware Requirements
 
 ### Required Components
@@ -105,6 +109,22 @@ cd MPULogger
 - Press and hold the button until long tone is played.
 - Wait for another tone indicating calibration complete
 - The device is now ready for accurate measurements
+- Calibration data is automatically saved to EEPROM for future use
+
+### Calibration Storage Details
+
+The system includes persistent calibration storage with the following features:
+
+**Three-State Calibration Display:**
+- **"Uncalibrated"** (Red): No valid calibration data available
+- **"Using Saved Calibration"** (Blue): Calibration loaded from EEPROM on boot
+- **"Calibrated"** (Green): Fresh calibration just completed
+
+**Automatic Operations:**
+- Calibration loads automatically when system boots
+- New calibration saves automatically when completed
+- Manual recalibration overwrites saved data
+- Status updates in real-time on web interface
 
 ## Usage Instructions
 

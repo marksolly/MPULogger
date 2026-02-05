@@ -42,5 +42,19 @@
 // Memory Configuration
 #define WEB_CLIENT_MAX 4             // Maximum web streaming clients
 
+// EEPROM Configuration
+#define EEPROM_SIZE 512               // Total EEPROM size in bytes
+#define EEPROM_CAL_BASE_ADDR 0        // Calibration data base address
+#define EEPROM_CAL_MAGIC_NUMBER 0x43414C45  // "CALE" in hex
+#define EEPROM_CAL_VERSION 1          // Calibration data version
+#define EEPROM_CAL_FLAG_VALID 0x01     // Bit 0: Valid calibration flag
+
+// Calibration Status Enumeration
+enum CalibrationStatus {
+  UNCALIBRATED = 0,
+  CALIBRATED = 1,
+  USING_SAVED = 2
+};
+
 #define _PROJECT_CONSTANTS
 #endif

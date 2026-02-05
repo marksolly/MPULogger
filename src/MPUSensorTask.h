@@ -36,6 +36,7 @@ class MPUSensorTask : public Task {
     // Calibration state
     bool isCalibrated = false;
     bool isCalibrating = false;
+    CalibrationStatus calibrationStatus = UNCALIBRATED;
     
     // FIFO buffer data
     uint16_t fifoCount = 0;
@@ -50,6 +51,11 @@ class MPUSensorTask : public Task {
     void startCalibration();
     bool isCalibrationComplete() const;
     void accumulateCalibrationSample();
+    
+    // EEPROM calibration methods
+    bool loadSavedCalibration();
+    bool saveCalibration();
+    CalibrationStatus getCalibrationStatus() const;
     
     // Sensor data methods
     void updateSensorData();

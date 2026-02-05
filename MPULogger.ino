@@ -13,17 +13,22 @@
 // Project-specific includes
 #include "src/constants.h"
 #include "src/Settings.h"
+#include "src/EEPROMManager.h"
 #include "src/Task.h"
 #include "src/Tasks.h"
 
 // Global objects
 Settings settings;
+EEPROMManager eepromManager;
 
 void setup() {
   Serial.begin(115200);
   
   // Initialize EEPROM
-  EEPROM.begin(512);
+  EEPROM.begin(EEPROM_SIZE);
+  
+  // Initialize EEPROM Manager
+  eepromManager.begin();
   
   // Initialize SPIFFS
   Serial.println(F("Init SPIFFS"));
