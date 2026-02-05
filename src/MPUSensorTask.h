@@ -6,8 +6,9 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 
-// Forward declaration
+// Forward declarations
 class DataLoggingTask;
+class BuzzerFeedbackTask;
 
 class MPUSensorTask : public Task {
   public:
@@ -62,9 +63,13 @@ class MPUSensorTask : public Task {
     // Data logging integration
     void setDataLoggingTask(DataLoggingTask* dataLogger);
     
+    // Buzzer feedback integration
+    void setBuzzerFeedbackTask(BuzzerFeedbackTask* buzzerTask);
+    
   private:
     Adafruit_MPU6050 mpu;
     DataLoggingTask* dataLogger;
+    BuzzerFeedbackTask* buzzerTask;
     
     // Calibration accumulation variables
     float accel_sum_x = 0;

@@ -79,13 +79,10 @@ void BuzzerFeedbackTask::playCalibrationStartPattern() {
 }
 
 void BuzzerFeedbackTask::playCalibrationCompletePattern() {
-  // Two quick beeps for calibration complete
+  // Single short tone for calibration complete
   if (!toneActive) {
     startTone(TONE_CALIBRATION_COMPLETE, TONE_DURATION_SHORT);
     currentTone = BUZZ_TONE_CALIBRATION_COMPLETE;
-    
-    // Schedule second beep after a short pause
-    // This will be handled in the next run cycle when the first tone completes
   }
 }
 

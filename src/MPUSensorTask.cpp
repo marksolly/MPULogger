@@ -1,5 +1,6 @@
 #include "MPUSensorTask.h"
 #include "DataLoggingTask.h"
+#include "BuzzerFeedbackTask.h"
 
 MPUSensorTask::MPUSensorTask(DataLoggingTask* dataLogger) 
   : dataLogger(dataLogger) {
@@ -9,13 +10,18 @@ MPUSensorTask::MPUSensorTask(DataLoggingTask* dataLogger)
 
 void MPUSensorTask::run() {
   // Check for calibration completion
-  if (isCalibrating) {
+    if (isCalibrating) {
     if (isCalibrationComplete()) {
       calculateOffsets();
       applyOffsets();
       isCalibrating = false;
       isCalibrated = true;
       Serial.println(F("Calibration complete"));
+      
+      // Play calibration complete tone
+      if (buzzerTask) {
+        buzzerTask->playCalibrationCompleteTone();
+      }
     } else {
       // Collect calibration sample and accumulate values
       accumulateCalibrationSample();
@@ -172,4 +178,8 @@ void MPUSensorTask::flushFIFO() {
 
 void MPUSensorTask::setDataLoggingTask(DataLoggingTask* dataLogger) {
   this->dataLogger = dataLogger;
+}
+
+void MPUSensorTask::setBuzzerFeedbackTask(BuzzerFeedbackTask* buzzerTask) {
+  this->buzzerTask = buzzerTask;
 }
