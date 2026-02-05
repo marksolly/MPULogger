@@ -1,0 +1,1276 @@
+<!DOCTYPE HTML><html>
+<head>
+  <title>Historical Data Viewer - MPU6050 Data Logger</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="uPlot.min.css">
+  <style>
+    body { 
+      font-family: Arial; 
+      margin: 0; 
+      padding: 10px; 
+      background-color: #f2f2f2; 
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .header { 
+      background: white; 
+      padding: 15px; 
+      margin-bottom: 10px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .controls {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .control-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      min-width: 150px;
+    }
+    .control-item label {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .control-item select,
+    .control-item input {
+      padding: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .button { 
+      background-color: #007bff; 
+      color: white; 
+      border: none; 
+      padding: 8px 16px; 
+      margin: 5px; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      font-size: 14px;
+    }
+    .button:hover { background-color: #0056b3; }
+    .button:disabled { 
+      background-color: #6c757d; 
+      cursor: not-allowed; 
+    }
+    .button.danger { background-color: #dc3545; }
+    .button.danger:hover { background-color: #c82333; }
+    .chart-container {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 1200px) {
+      .chart-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .plot { 
+      width: 100%; 
+    }
+
+    .uplot {
+      display: flex !important;
+      flex-direction: column;
+    }
+
+    .u-wrap {
+      order: 1;
+    }
+
+    .u-legend {
+      order: 2;
+      position: static !important;
+      transform: none !important;
+      background: transparent !important;
+      border: none !important;
+      margin-top: 10px;
+      text-align: center;
+      width: 100%;
+      font-size: 13px;
+    }
+    
+    .u-legend tr {
+      display: inline-block;
+      margin-right: 15px;
+      cursor: pointer;
+    }
+    
+    .u-legend tr:first-child {
+      display: none;
+    }
+    .back-link {
+      display: inline-block;
+      margin: 10px 0;
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .back-link:hover {
+      background-color: #0056b3;
+    }
+    .progress {
+      width: 100%;
+      height: 20px;
+      background-color: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #007bff;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin: 5px 0;
+    }
+    .status.info { background-color: #d1ecf1; color: #0c5460; }
+    .status.success { background-color: #d4edda; color: #155724; }
+    .status.warning { background-color: #fff3cd; color: #856404; }
+    .status.error { background-color: #f8d7da; color: #721c24; }
+    .file-info {
+      font-size: 0.9rem;
+      color: #666;
+      margin: 5px 0;
+    }
+    .chart-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .zoom-controls {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .zoom-controls button {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .table-container {
+      background: white;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    .table-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .data-table th,
+    .data-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    .data-table th {
+      background-color: #f8f9fa;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .data-table th:hover {
+      background-color: #e9ecef;
+    }
+    .data-table tr:hover {
+      background-color: #f8f9fa;
+    }
+    .table-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .pagination {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .pagination button {
+      padding: 4px 8px;
+      font-size: 12px;
+      min-width: 30px;
+    }
+    .pagination-info {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .search-box {
+      padding: 5px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+    .sort-indicator {
+      margin-left: 5px;
+      font-size: 0.8em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Historical Data Viewer</h1>
+      <a href="/" class="back-link">← Back to Main</a>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <div class="control-item">
+          <label for="file-select">Select File:</label>
+          <select id="file-select">
+            <option value="">Loading files...</option>
+          </select>
+        </div>
+        <div class="control-item">
+          <label for="time-range">Time Window:</label>
+          <select id="time-range">
+            <option value="all">All Data</option>
+            <option value="60">Last 1 Minute</option>
+            <option value="300">Last 5 Minutes</option>
+            <option value="600">Last 10 Minutes</option>
+            <option value="1800">Last 30 Minutes</option>
+            <option value="3600">Last 1 Hour</option>
+          </select>
+        </div>
+        <button class="button" onclick="loadSelectedFile()" id="load-btn">Load File</button>
+        <button class="button" onclick="deleteSelectedFile()" id="delete-btn" disabled>Delete File</button>
+        <button class="button" onclick="showTableView()" id="table-btn" disabled>Show Table</button>
+        <button class="button" onclick="showChartView()" id="chart-btn" disabled>Show Charts</button>
+        <button class="button" onclick="downloadAsJSON()" id="download-btn" disabled>Download JSON</button>
+      </div>
+      
+      <div class="progress" id="loading-progress" style="display: none;">
+        <div class="progress-bar" id="loading-progress-bar"></div>
+      </div>
+      <div id="status" class="status info">Select a file to view historical data</div>
+      <div id="file-info" class="file-info"></div>
+    </div>
+
+    <div class="chart-grid" id="charts" style="display: none;">
+      <div class="chart-container">
+        <div class="chart-title">Acceleration (G)</div>
+        <div id="accel-plot" class="plot"></div>
+        <div class="chart-controls">
+          <div class="zoom-controls">
+            <button class="button" onclick="zoomIn('accel')">Zoom In</button>
+            <button class="button" onclick="zoomOut('accel')">Zoom Out</button>
+            <button class="button" onclick="resetZoom('accel')">Reset</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-title">Gyros (deg/sec)</div>
+        <div id="gyros-plot" class="plot"></div>
+        <div class="chart-controls">
+          <div class="zoom-controls">
+            <button class="button" onclick="zoomIn('orientation')">Zoom In</button>
+            <button class="button" onclick="zoomOut('orientation')">Zoom Out</button>
+            <button class="button" onclick="resetZoom('orientation')">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-container" id="table-container" style="display: none;">
+      <div class="table-title">Sensor Data Table</div>
+      <div class="table-controls">
+        <input type="text" class="search-box" id="search-box" placeholder="Search data..." onkeyup="searchTable()">
+        <div class="pagination">
+          <button class="button" onclick="firstPage()" id="first-btn">«</button>
+          <button class="button" onclick="previousPage()" id="prev-btn">‹</button>
+          <span class="pagination-info" id="page-info">Page 1 of 1</span>
+          <button class="button" onclick="nextPage()" id="next-btn">›</button>
+          <button class="button" onclick="lastPage()" id="last-btn">»</button>
+        </div>
+      </div>
+      <table class="data-table" id="data-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)">Time (s) <span class="sort-indicator" id="sort-0"></span></th>
+            <th onclick="sortTable(1)">Delay (s) <span class="sort-indicator" id="sort-1"></span></th>
+            <th onclick="sortTable(2)">Accel X (G) <span class="sort-indicator" id="sort-2"></span></th>
+            <th onclick="sortTable(3)">Accel Y (G) <span class="sort-indicator" id="sort-3"></span></th>
+            <th onclick="sortTable(4)">Accel Z (G) <span class="sort-indicator" id="sort-4"></span></th>
+            <th onclick="sortTable(5)">Yaw (°) <span class="sort-indicator" id="sort-5"></span></th>
+            <th onclick="sortTable(6)">Pitch (°) <span class="sort-indicator" id="sort-6"></span></th>
+            <th onclick="sortTable(7)">Roll (°) <span class="sort-indicator" id="sort-7"></span></th>
+            <th onclick="sortTable(8)">Flags <span class="sort-indicator" id="sort-8"></span></th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="uPlot.iife.min.js"></script>
+  <script>
+    // Binary data decoder for MPULogRecord format
+    class MPULogDecoder {
+      constructor() {
+        this.RECORD_SIZE = 32; // bytes per record
+      }
+
+      async decodeFile(arrayBuffer) {
+        const dataView = new DataView(arrayBuffer);
+        const records = [];
+        
+        const recordCount = Math.floor(arrayBuffer.byteLength / this.RECORD_SIZE);
+        
+        // Only iterate while there's enough data for a complete record
+        for (let offset = 0; offset <= arrayBuffer.byteLength - this.RECORD_SIZE; offset += this.RECORD_SIZE) {
+          try {
+            const record = {
+              timestamp: dataView.getUint32(offset, true), // little-endian
+              accel_x: dataView.getFloat32(offset + 4, true),
+              accel_y: dataView.getFloat32(offset + 8, true),
+              accel_z: dataView.getFloat32(offset + 12, true),
+              yaw: dataView.getFloat32(offset + 16, true),
+              pitch: dataView.getFloat32(offset + 20, true),
+              roll: dataView.getFloat32(offset + 24, true),
+              flags: dataView.getUint8(offset + 31)  // Correct offset for flags field
+            };
+            records.push(record);
+          } catch (error) {
+            console.error('Error decoding record at offset', offset, ':', error);
+            // Stop decoding on error to prevent corrupt data
+            break;
+          }
+        }
+        
+        const hasPartialRecord = (arrayBuffer.byteLength % this.RECORD_SIZE) !== 0;
+        
+        return {
+          records: records,
+          recordCount: recordCount,
+          expectedCount: recordCount,
+          corrupted: records.length < recordCount || hasPartialRecord
+        };
+      }
+    }
+
+    // Global variables
+    let decoder = new MPULogDecoder();
+    let currentData = null;
+    let accelPlot = null;
+    let orientationPlot = null;
+    let fileList = [];
+    let currentZoomRange = { accel: null, orientation: null };
+    let defaultZoomRanges = { accel: { min: -10, max: 10 }, orientation: { min: -180, max: 180 } };
+    
+    // Table-related variables
+    let tableData = [];
+    let filteredTableData = [];
+    let currentPage = 1;
+    let rowsPerPage = 100;
+    let sortColumn = -1;
+    let sortDirection = 'asc';
+    let currentView = 'charts'; // 'charts' or 'table'
+
+    // Load file list from server
+    async function loadFileList() {
+      try {
+        const response = await fetch('/api/files');
+        const data = await response.json();
+        
+        if (data.files && Array.isArray(data.files)) {
+          fileList = data.files;
+          updateFileSelect();
+        } else {
+          updateStatus('Invalid response format from server', 'error');
+        }
+      } catch (error) {
+        updateStatus('Network error loading file list: ' + error.message, 'error');
+      }
+    }
+
+    // Update file selection dropdown
+    function updateFileSelect() {
+      const select = document.getElementById('file-select');
+      select.innerHTML = '<option value="">Select a file...</option>';
+      
+      // Filter to only show .bin files
+      fileList.filter(file => file.name.endsWith('.bin')).forEach(file => {
+        const option = document.createElement('option');
+        option.value = file.name;
+        option.textContent = `${file.name} (${formatFileSize(file.size)})`;
+        select.appendChild(option);
+      });
+      
+      document.getElementById('delete-btn').disabled = true;
+    }
+
+    // Load selected file
+    async function loadSelectedFile() {
+      const filename = document.getElementById('file-select').value;
+      if (!filename) {
+        updateStatus('Please select a file to load', 'warning');
+        return;
+      }
+
+      const file = fileList.find(f => f.name === filename);
+      if (!file) {
+        updateStatus('File not found: ' + filename, 'error');
+        return;
+      }
+
+      updateStatus(`Loading ${filename}...`, 'info');
+      showProgress();
+      document.getElementById('load-btn').disabled = true;
+      document.getElementById('delete-btn').disabled = true;
+
+      try {
+        const response = await fetch(`${filename.startsWith('/') ? filename : '/' + filename}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        updateProgress(50);
+        
+        // Decode binary data
+        const decodedData = await decoder.decodeFile(arrayBuffer);
+        updateProgress(75);
+        
+        if (decodedData.records.length === 0) {
+          throw new Error('No valid data found in file');
+        }
+
+        currentData = decodedData;
+        updateProgress(100);
+        
+        // Update UI
+        updateFileInfo(file, decodedData);
+        displayData(decodedData);
+        
+        // Reset to chart view by default
+        currentView = 'charts';
+        document.getElementById('table-btn').disabled = false;
+        document.getElementById('chart-btn').disabled = true;
+        
+        updateStatus(`Successfully loaded ${decodedData.records.length} records from ${filename}`, 'success');
+        document.getElementById('delete-btn').disabled = false;
+        document.getElementById('download-btn').disabled = false;
+        
+      } catch (error) {
+        updateStatus('Error loading file: ' + error.message, 'error');
+        console.error('File loading error:', error);
+      } finally {
+        hideProgress();
+        document.getElementById('load-btn').disabled = false;
+      }
+    }
+
+    // Delete selected file
+    async function deleteSelectedFile() {
+      const filename = document.getElementById('file-select').value;
+      if (!filename) return;
+
+      if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+        return;
+      }
+
+      updateStatus(`Deleting ${filename}...`, 'info');
+      
+      try {
+        const response = await fetch(`${filename.startsWith('/') ? filename : '/' + filename}`, { method: 'DELETE' });
+        const data = await response.json();
+        
+        if (data.status === 'ok') {
+          updateStatus(`Successfully deleted ${filename}`, 'success');
+          await loadFileList(); // Refresh file list
+          clearCharts();
+        } else {
+          updateStatus('Error deleting file: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        updateStatus('Network error deleting file: ' + error.message, 'error');
+      }
+    }
+
+    // Convert absolute timestamps to relative time in seconds from start
+    function convertToRelativeTime(timestamps) {
+      if (timestamps.length === 0) return [];
+      
+      const startTime = timestamps[0];
+      return timestamps.map(timestamp => (timestamp - startTime) / 1000); // Convert to seconds
+    }
+
+    // Display decoded data in charts
+    function displayData(decodedData) {
+      const records = decodedData.records;
+      
+      // Prepare data arrays
+      const timestamps = records.map(r => r.timestamp);
+      const accelX = records.map(r => r.accel_x);
+      const accelY = records.map(r => r.accel_y);
+      const accelZ = records.map(r => r.accel_z);
+      const yaw = records.map(r => r.yaw);
+      const pitch = records.map(r => r.pitch);
+      const roll = records.map(r => r.roll);
+
+      // Apply time range filter if selected
+      const timeRange = document.getElementById('time-range').value;
+      let filteredData = filterByTimeRange(timestamps, accelX, accelY, accelZ, yaw, pitch, roll, timeRange);
+
+      // Convert filtered timestamps to relative time for charts
+      const relativeTime = convertToRelativeTime(filteredData.timestamps);
+      const chartData = {
+        relativeTime: relativeTime,
+        accelX: filteredData.accelX,
+        accelY: filteredData.accelY,
+        accelZ: filteredData.accelZ,
+        yaw: filteredData.yaw,
+        pitch: filteredData.pitch,
+        roll: filteredData.roll,
+        originalTimestamps: filteredData.timestamps // Keep for reference
+      };
+
+      // Initialize or update plots
+      if (!accelPlot) {
+        initPlots(chartData);
+        
+        setTimeout(()=>{
+          handleResize();
+        }, 100);        
+      } else {
+        updatePlots(chartData);
+
+        setTimeout(()=>{
+          handleResize();
+        }, 100);
+      }
+
+      document.getElementById('charts').style.display = 'grid';
+    }
+
+    // Filter data by time range
+    function filterByTimeRange(timestamps, accelX, accelY, accelZ, yaw, pitch, roll, timeRangeSeconds) {
+      if (timeRangeSeconds === 'all' || timestamps.length === 0) {
+        return { timestamps, accelX, accelY, accelZ, yaw, pitch, roll };
+      }
+
+      const endTime = timestamps[timestamps.length - 1];
+      const startTime = endTime - (parseInt(timeRangeSeconds) * 1000);
+      
+      const filtered = {
+        timestamps: [],
+        accelX: [],
+        accelY: [],
+        accelZ: [],
+        yaw: [],
+        pitch: [],
+        roll: []
+      };
+
+      for (let i = 0; i < timestamps.length; i++) {
+        if (timestamps[i] >= startTime) {
+          filtered.timestamps.push(timestamps[i]);
+          filtered.accelX.push(accelX[i]);
+          filtered.accelY.push(accelY[i]);
+          filtered.accelZ.push(accelZ[i]);
+          filtered.yaw.push(yaw[i]);
+          filtered.pitch.push(pitch[i]);
+          filtered.roll.push(roll[i]);
+        }
+      }
+
+      return filtered;
+    }
+
+    function getSize(elementId) {
+      const el = document.getElementById(elementId);
+      return {
+        width: el.offsetWidth,
+        height: 300
+      };
+    }
+
+    // Initialize uPlot charts
+    function initPlots(data) {
+      const dims = getSize('accel-plot');
+
+      // Acceleration plot
+      accelPlot = new uPlot({
+        width: dims.width,
+        height: dims.height,
+        scales: {
+            time: false
+          x: {
+          },
+          y: {
+            range: [-10, 10],
+            align: 1
+          }
+        },
+        series: [
+          {
+            label: "Time (seconds)",
+            value: (u, v) => v != null ? v.toFixed(2) + "s" : "",
+          },
+          {
+            label: "Accel X",
+            stroke: "#ff6b6b",
+            width: 1,
+            points: { show: false }
+          },
+          {
+            label: "Accel Y", 
+            stroke: "#4ecdc4",
+            width: 1,
+            points: { show: false }
+          },
+          {
+            label: "Accel Z",
+            stroke: "#45b7d1", 
+            width: 1,
+            points: { show: false }
+          }
+        ],
+        axes: [
+          {
+            stroke: "#666",
+            grid: { show: false },
+            label: "Time (seconds)",
+            size: 60
+          },
+          {
+            stroke: "#666",
+            grid: { show: true },
+            size: 50
+          }
+        ],
+        cursor: {
+          sync: {
+            key: "cursor",
+            setSeries: true,
+          },
+          focus: {
+            prox: 30,
+          },
+        }
+      }, [
+        data.relativeTime,
+        data.accelX,
+        data.accelY,
+        data.accelZ
+      ], document.getElementById('accel-plot'));
+
+      // Orientation plot
+      orientationPlot = new uPlot({
+        width: dims.width,
+        height: dims.height,
+        scales: {
+          x: {
+            time: false
+          },
+          y: {
+            range: [-180, 180],
+            align: 1
+          }
+        },
+        series: [
+          {
+            label: "Time (seconds)",
+            value: (u, v) => v != null ? v.toFixed(2) + "s" : "",
+          },
+          {
+            label: "Yaw",
+            stroke: "#ff9f43",
+            width: 1,
+            points: { show: false }
+          },
+          {
+            label: "Pitch",
+            stroke: "#10ac84",
+            width: 1,
+            points: { show: false }
+          },
+          {
+            label: "Roll",
+            stroke: "#5f27cd",
+            width: 1,
+            points: { show: false }
+          }
+        ],
+        axes: [
+          {
+            stroke: "#666",
+            grid: { show: false },
+            label: "Time (seconds)",
+            size: 60
+          },
+          {
+            stroke: "#666",
+            grid: { show: true },
+            size: 50
+          }
+        ],
+        cursor: {
+          sync: {
+            key: "cursor",
+            setSeries: true,
+          },
+          focus: {
+            prox: 30,
+          },
+        }
+      }, [
+        data.relativeTime,
+        data.yaw,
+        data.pitch,
+        data.roll
+      ], document.getElementById('gyros-plot'));
+    }
+
+    // Update existing plots with new data
+    function updatePlots(data) {
+      if (accelPlot) {
+        accelPlot.setData([
+          data.relativeTime,
+          data.accelX,
+          data.accelY,
+          data.accelZ
+        ]);
+      }
+      
+      if (orientationPlot) {
+        orientationPlot.setData([
+          data.relativeTime,
+          data.yaw,
+          data.pitch,
+          data.roll
+        ]);
+      }
+    }
+
+    // Zoom functions
+// Helper to get the absolute start and end time of the current data
+    function getDataExtents(plot) {
+      // plot.data[0] always contains the x-axis values (timestamps/relative time)
+      const xData = plot.data[0];
+      if (!xData || xData.length === 0) return { min: 0, max: 10 };
+      
+      return {
+        min: xData[0],
+        max: xData[xData.length - 1]
+      };
+    }
+
+    function zoomIn(chartType) {
+      const plot = chartType === 'accel' ? accelPlot : orientationPlot;
+      if (!plot) return;
+
+      const currentMin = plot.scales.x.min;
+      const currentMax = plot.scales.x.max;
+      const range = currentMax - currentMin;
+      const center = currentMin + (range / 2);
+
+      // Zoom in by reducing the time window to 60% of current
+      const newRange = range * 0.6;
+
+      plot.setScale('x', {
+        min: center - (newRange / 2),
+        max: center + (newRange / 2)
+      });
+    }
+
+    function zoomOut(chartType) {
+      const plot = chartType === 'accel' ? accelPlot : orientationPlot;
+      if (!plot) return;
+
+      const currentMin = plot.scales.x.min;
+      const currentMax = plot.scales.x.max;
+      const range = currentMax - currentMin;
+      const center = currentMin + (range / 2);
+      const extents = getDataExtents(plot);
+
+      // Zoom out by increasing the time window
+      const newRange = range * 1.5;
+      
+      let newMin = center - (newRange / 2);
+      let newMax = center + (newRange / 2);
+
+      // Optional: Clamp so we don't zoom out infinitely past the actual data
+      if (newMin < extents.min) newMin = extents.min;
+      if (newMax > extents.max) newMax = extents.max;
+
+      plot.setScale('x', {
+        min: newMin,
+        max: newMax
+      });
+    }
+
+    function resetZoom(chartType) {
+      const plot = chartType === 'accel' ? accelPlot : orientationPlot;
+      if (!plot) return;
+
+      // "Zoom Extents": Set the scale to the absolute first and last data points
+      const extents = getDataExtents(plot);
+
+      plot.setScale('x', {
+        min: extents.min,
+        max: extents.max
+      });
+    }
+
+    // View toggle functions
+    function showTableView() {
+      if (!currentData) return;
+      
+      currentView = 'table';
+      document.getElementById('charts').style.display = 'none';
+      document.getElementById('table-container').style.display = 'block';
+      document.getElementById('table-btn').disabled = true;
+      document.getElementById('chart-btn').disabled = false;
+      
+      updateTableData();
+      updateTable();
+    }
+
+    function showChartView() {
+      if (!currentData) return;
+      
+      currentView = 'charts';
+      document.getElementById('table-container').style.display = 'none';
+      document.getElementById('charts').style.display = 'grid';
+      document.getElementById('table-btn').disabled = false;
+      document.getElementById('chart-btn').disabled = true;
+    }
+
+    // Table functions
+    function updateTableData() {
+      if (!currentData) return;
+      
+      const records = currentData.records;
+      const timestamps = records.map(r => r.timestamp);
+      const accelX = records.map(r => r.accel_x);
+      const accelY = records.map(r => r.accel_y);
+      const accelZ = records.map(r => r.accel_z);
+      const yaw = records.map(r => r.yaw);
+      const pitch = records.map(r => r.pitch);
+      const roll = records.map(r => r.roll);
+
+      // Apply time range filter
+      const timeRange = document.getElementById('time-range').value;
+      let filteredData = filterByTimeRange(timestamps, accelX, accelY, accelZ, yaw, pitch, roll, timeRange);
+
+      // Convert filtered timestamps to relative time for table
+      const relativeTime = convertToRelativeTime(filteredData.timestamps);
+
+      // Calculate inter-sample delay (first record has 0.000 delay)
+      tableData = [];
+      for (let i = 0; i < filteredData.timestamps.length; i++) {
+        const interSampleDelay = i === 0 ? 0.000 : 
+          (filteredData.timestamps[i] - filteredData.timestamps[i - 1]) / 1000;
+
+        tableData.push({
+          relativeTime: relativeTime[i],
+          interSampleDelay: interSampleDelay.toFixed(3),
+          accel_x: filteredData.accelX[i],
+          accel_y: filteredData.accelY[i],
+          accel_z: filteredData.accelZ[i],
+          yaw: filteredData.yaw[i],
+          pitch: filteredData.pitch[i],
+          roll: filteredData.roll[i],
+          flags: records.find(r => r.timestamp === filteredData.timestamps[i])?.flags || 0
+        });
+      }
+
+      filteredTableData = [...tableData];
+      currentPage = 1;
+      sortColumn = -1;
+      sortDirection = 'asc';
+      clearSortIndicators();
+    }
+
+    function updateTable() {
+      const tbody = document.getElementById('table-body');
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      const endIndex = Math.min(startIndex + rowsPerPage, filteredTableData.length);
+      
+      tbody.innerHTML = '';
+      
+      for (let i = startIndex; i < endIndex; i++) {
+        const row = filteredTableData[i];
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.relativeTime.toFixed(3)}</td>
+          <td>${row.interSampleDelay}</td>
+          <td>${row.accel_x.toFixed(4)}</td>
+          <td>${row.accel_y.toFixed(4)}</td>
+          <td>${row.accel_z.toFixed(4)}</td>
+          <td>${row.yaw.toFixed(2)}</td>
+          <td>${row.pitch.toFixed(2)}</td>
+          <td>${row.roll.toFixed(2)}</td>
+          <td>${row.flags}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      
+      updatePagination();
+    }
+
+    function updatePagination() {
+      const totalPages = Math.ceil(filteredTableData.length / rowsPerPage);
+      const pageInfo = document.getElementById('page-info');
+      
+      pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${filteredTableData.length} records)`;
+      
+      document.getElementById('first-btn').disabled = currentPage === 1;
+      document.getElementById('prev-btn').disabled = currentPage === 1;
+      document.getElementById('next-btn').disabled = currentPage === totalPages;
+      document.getElementById('last-btn').disabled = currentPage === totalPages;
+    }
+
+    function firstPage() {
+      currentPage = 1;
+      updateTable();
+    }
+
+    function previousPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        updateTable();
+      }
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(filteredTableData.length / rowsPerPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        updateTable();
+      }
+    }
+
+    function lastPage() {
+      currentPage = Math.ceil(filteredTableData.length / rowsPerPage);
+      updateTable();
+    }
+
+    function sortTable(column) {
+      if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+      }
+
+      clearSortIndicators();
+      const indicator = document.getElementById(`sort-${column}`);
+      indicator.textContent = sortDirection === 'asc' ? '↑' : '↓';
+
+      const keys = ['relativeTime', 'interSampleDelay', 'accel_x', 'accel_y', 'accel_z', 'yaw', 'pitch', 'roll', 'flags'];
+      const key = keys[column];
+
+      filteredTableData.sort((a, b) => {
+        let aVal = a[key];
+        let bVal = b[key];
+        
+        if (typeof aVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+        
+        if (sortDirection === 'asc') {
+          return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+        } else {
+          return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+        }
+      });
+
+      currentPage = 1;
+      updateTable();
+    }
+
+    function clearSortIndicators() {
+      for (let i = 0; i < 9; i++) {
+        document.getElementById(`sort-${i}`).textContent = '';
+      }
+    }
+
+    function searchTable() {
+      const searchTerm = document.getElementById('search-box').value.toLowerCase();
+      
+      if (searchTerm === '') {
+        filteredTableData = [...tableData];
+      } else {
+        filteredTableData = tableData.filter(row => {
+          return Object.values(row).some(value => 
+            value.toString().toLowerCase().includes(searchTerm)
+          );
+        });
+      }
+      
+      currentPage = 1;
+      updateTable();
+    }
+
+    // JSON download function
+    function downloadAsJSON() {
+      if (!currentData) return;
+
+      const filename = document.getElementById('file-select').value;
+      const timeRange = document.getElementById('time-range').value;
+      
+      // Get the current filtered data based on view
+      let exportData;
+      if (currentView === 'table') {
+        exportData = filteredTableData;
+      } else {
+        // Get chart data
+        const records = currentData.records;
+        const timestamps = records.map(r => r.timestamp);
+        const accelX = records.map(r => r.accel_x);
+        const accelY = records.map(r => r.accel_y);
+        const accelZ = records.map(r => r.accel_z);
+        const yaw = records.map(r => r.yaw);
+        const pitch = records.map(r => r.pitch);
+        const roll = records.map(r => r.roll);
+
+        const filteredData = filterByTimeRange(timestamps, accelX, accelY, accelZ, yaw, pitch, roll, timeRange);
+        
+        exportData = [];
+        for (let i = 0; i < filteredData.timestamps.length; i++) {
+          exportData.push({
+            timestamp: filteredData.timestamps[i],
+            accel_x: filteredData.accelX[i],
+            accel_y: filteredData.accelY[i],
+            accel_z: filteredData.accelZ[i],
+            yaw: filteredData.yaw[i],
+            pitch: filteredData.pitch[i],
+            roll: filteredData.roll[i],
+            flags: records.find(r => r.timestamp === filteredData.timestamps[i])?.flags || 0
+          });
+        }
+      }
+
+      const duration = exportData.length > 0 ? 
+        (exportData[exportData.length - 1].timestamp - exportData[0].timestamp) / 1000 : 0;
+
+      const jsonData = {
+        metadata: {
+          filename: filename,
+          recordCount: exportData.length,
+          duration: duration,
+          sampleRate: (exportData.length / Math.max(duration, 1)).toFixed(2),
+          exportTime: new Date().toISOString(),
+          timeRangeFilter: timeRange,
+          corrupted: currentData.corrupted
+        },
+        records: exportData
+      };
+
+      const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace('.bin', '_data.json');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      updateStatus(`Downloaded ${exportData.length} records as JSON`, 'success');
+    }
+
+    // Utility functions
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function updateStatus(message, type) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.className = 'status ' + type;
+    }
+
+    function updateFileInfo(file, decodedData) {
+      const infoEl = document.getElementById('file-info');
+      const duration = decodedData.records.length > 0 ? 
+        (decodedData.records[decodedData.records.length - 1].timestamp - decodedData.records[0].timestamp) / 1000 : 0;
+      
+      infoEl.innerHTML = `
+        File: ${file.name} | 
+        Size: ${formatFileSize(file.size)} | 
+        Records: ${decodedData.records.length} | 
+        Duration: ${duration.toFixed(1)}s |
+        Sample Rate: ${(decodedData.records.length / Math.max(duration, 1)).toFixed(1)} Hz
+        ${decodedData.corrupted ? ' | ⚠️ Some data may be corrupted' : ''}
+      `;
+    }
+
+    function showProgress() {
+      document.getElementById('loading-progress').style.display = 'block';
+      document.getElementById('loading-progress-bar').style.width = '0%';
+    }
+
+    function updateProgress(percent) {
+      document.getElementById('loading-progress-bar').style.width = percent + '%';
+    }
+
+    function hideProgress() {
+      setTimeout(() => {
+        document.getElementById('loading-progress').style.display = 'none';
+      }, 500);
+    }
+
+    function clearCharts() {
+      if (accelPlot) {
+        accelPlot.destroy();
+        accelPlot = null;
+      }
+      if (orientationPlot) {
+        orientationPlot.destroy();
+        orientationPlot = null;
+      }
+      document.getElementById('charts').style.display = 'none';
+      document.getElementById('table-container').style.display = 'none';
+      document.getElementById('file-info').innerHTML = '';
+      
+      // Reset table-related variables
+      tableData = [];
+      filteredTableData = [];
+      currentPage = 1;
+      sortColumn = -1;
+      sortDirection = 'asc';
+      currentView = 'charts';
+      
+      // Reset buttons
+      document.getElementById('table-btn').disabled = true;
+      document.getElementById('chart-btn').disabled = true;
+      document.getElementById('download-btn').disabled = true;
+      
+      // Clear table body
+      document.getElementById('table-body').innerHTML = '';
+      document.getElementById('search-box').value = '';
+      clearSortIndicators();
+      
+      // Reset zoom state
+      currentZoomRange = { accel: null, orientation: null };
+    }
+
+    // Handle window resize
+    function handleResize() {
+      const accelDims = getSize('accel-plot');
+      const orientDims = getSize('gyros-plot');
+      
+      if (accelPlot) {
+        accelPlot.setSize(accelDims);
+      }
+      
+      if (orientationPlot) {
+        orientationPlot.setSize(orientDims);
+      }
+    }
+
+    // Initialize page
+    async function init() {
+      await loadFileList();
+      
+      // Verify record size consistency
+      await verifyRecordSize();
+      
+      // Handle window resize
+      window.addEventListener('resize', handleResize);
+      
+      // Handle time range changes
+      document.getElementById('time-range').addEventListener('change', () => {
+        if (currentData) {
+          if (currentView === 'charts') {
+            displayData(currentData);
+          } else {
+            updateTableData();
+            updateTable();
+          }
+        }
+      });
+    }
+
+    // Verify record size consistency between client and server
+    async function verifyRecordSize() {
+      try {
+        const response = await fetch('/api/meta');
+        if (!response.ok) {
+          console.warn('Could not verify record size - server returned:', response.status, response.statusText);
+          return;
+        }
+        
+        const meta = await response.json();
+        const serverRecordSize = meta.recordSize;
+        
+        // Compare with local constant
+        if (serverRecordSize !== decoder.RECORD_SIZE) {
+          const errorMsg = `⚠️ Record size mismatch detected! Server reports ${serverRecordSize} bytes, but client expects ${decoder.RECORD_SIZE} bytes. This may cause data corruption.`;
+          updateStatus(errorMsg, 'error');
+          console.error(errorMsg);
+          
+          // Show warning in file info as well
+          const infoEl = document.getElementById('file-info');
+          if (infoEl.innerHTML) {
+            infoEl.innerHTML += `<br><span style="color: #ff6b6b; font-weight: bold;">${errorMsg}</span>`;
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying record size:', error);
+        updateStatus('Error verifying record size: ' + error.message, 'error');
+      }
+    }
+
+    // Start when page loads
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

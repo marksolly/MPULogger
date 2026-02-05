@@ -1,0 +1,350 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Real-time Sensor Data Stream</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- IMPORTANT: Ensure uPlot.min.css is uploaded to your ESP8266 SPIFFS -->
+  <link rel="stylesheet" href="uPlot.min.css">
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      margin: 0; 
+      padding: 10px; 
+      background-color: #f4f4f9; 
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    
+    .header { 
+      background: white; 
+      padding: 15px; 
+      margin-bottom: 15px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .status-card {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+
+    .status-value { font-size: 1.2rem; font-weight: bold; color: #007bff; }
+    .status-label { font-size: 0.8rem; color: #666; margin-top: 5px; }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    @media (max-width: 768px) {
+      .chart-grid { grid-template-columns: 1fr; }
+      .header { flex-direction: column; text-align: center; gap: 10px; }
+    }
+
+    .chart-container {
+      background: white;
+      padding: 15px;
+      padding-bottom: 5px; /* Less padding bottom since legend is there now */
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+      color: #333;
+    }
+
+    /* Fixed Plot Size */
+    .plot { 
+      /* We don't set height here anymore, we let uPlot control it */
+      width: 100%; 
+    }
+
+    /* --- LEGEND FIXES --- */
+    
+    /* 1. Target the container uPlot creates */
+    .uplot {
+      display: flex !important;
+      flex-direction: column;
+    }
+
+    /* 2. Move the Canvas (u-wrap) to the TOP (Order 1) */
+    .u-wrap {
+      order: 1;
+    }
+
+    /* 3. Move the Legend (u-legend) to the BOTTOM (Order 2) */
+    .u-legend {
+      order: 2;
+      position: static !important; /* Remove absolute positioning */
+      transform: none !important;
+      background: transparent !important;
+      border: none !important;
+      margin-top: 10px;
+      text-align: center;
+      width: 100%;
+      font-size: 13px;
+    }
+    
+    /* Make legend items larger and clickable */
+    .u-legend tr {
+      display: inline-block;
+      margin-right: 15px;
+      cursor: pointer;
+    }
+    
+    /* Hide the "Time" label in the legend if desired, as it's redundant */
+    .u-legend tr:first-child {
+      display: none;
+    }
+
+    .connection-status {
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .connected { background-color: #d4edda; color: #155724; }
+    .disconnected { background-color: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h2 style="margin:0;">Sensor Stream</h2>
+        <small>ESP8266 MPU6050 Logger</small>
+      </div>
+      <span id="connection-status" class="connection-status disconnected">Disconnected</span>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-card">
+        <div class="status-value" id="recording-status">-</div>
+        <div class="status-label">Recording</div>
+      </div>
+      <div class="status-card">
+        <div class="status-value" id="fifo-count">0</div>
+        <div class="status-label">FIFO Count</div>
+      </div>
+      <div class="status-card">
+        <div class="status-value" id="data-rate">0 Hz</div>
+        <div class="status-label">Data Rate</div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-container">
+        <div class="chart-title">Acceleration (G)</div>
+        <div id="accel-plot" class="plot"></div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Gyros (Deg/sec)</div>
+        <div id="gyros-plot" class="plot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ensure uPlot.iife.min.js is uploaded to your ESP8266 SPIFFS -->
+  <script src="uPlot.iife.min.js"></script>
+  
+  <script>
+    // Configuration
+    const WINDOW_SECONDS = 10; 
+    
+    // Data Buffers
+    const now = Date.now() / 1000;
+    let accelData = [ [now], [0], [0], [0] ]; 
+    let orientData = [ [now], [0], [0], [0] ];
+
+    let accelPlot = null;
+    let orientationPlot = null;
+    let eventSource = null;
+    let packetCount = 0;
+    let lastRateCheck = Date.now();
+
+    function getSize(elementId) {
+      const el = document.getElementById(elementId);
+      // We subtract a little to account for padding/margins preventing scrollbars
+      return {
+        width: el.offsetWidth,
+        height: 300 // Fixed height for the chart area
+      };
+    }
+
+    function initPlots() {
+      if (typeof uPlot === 'undefined') {
+        alert("uPlot library not loaded! Check SPIFFS upload.");
+        return;
+      }
+
+      const dims = getSize('accel-plot');
+
+      const commonOpts = {
+        width: dims.width,
+        height: dims.height,
+        scales: {
+          x: {
+            time: true,
+            auto: false, 
+          },
+        },
+        axes: [
+          {
+            stroke: "#888",
+            grid: { show: true, stroke: "#eee" },
+          },
+          {
+            stroke: "#888",
+            grid: { show: true, stroke: "#eee" },
+            size: 60
+          }
+        ],
+        cursor: {
+          drag: { x: false, y: false },
+          points: { size: 6 }
+        },
+        legend: {
+          show: true,
+          // This ensures the legend stays in the DOM for us to style with CSS
+        }
+      };
+
+      // 1. Acceleration Plot
+      const accelOpts = {
+        ...commonOpts,
+        scales: { ...commonOpts.scales, y: { range: [-2, 2], auto: true } }, 
+        series: [
+          { label: "Time" },
+          { label: "X", stroke: "red", width: 2 },
+          { label: "Y", stroke: "green", width: 2 },
+          { label: "Z", stroke: "blue", width: 2 }
+        ]
+      };
+      accelPlot = new uPlot(accelOpts, accelData, document.getElementById('accel-plot'));
+
+      // 2. Orientation Plot
+      const orientOpts = {
+        ...commonOpts,
+        scales: { ...commonOpts.scales, y: { range: [-180, 180], auto: false } }, 
+        series: [
+          { label: "Time" },
+          { label: "Yaw", stroke: "orange", width: 2 },
+          { label: "Pitch", stroke: "purple", width: 2 },
+          { label: "Roll", stroke: "cyan", width: 2 }
+        ]
+      };
+      orientationPlot = new uPlot(orientOpts, orientData, document.getElementById('gyros-plot'));
+    }
+
+    function updatePlots(data) {
+      const now = Date.now() / 1000;
+      
+      if (data.accel) {
+        accelData[0].push(now);
+        accelData[1].push(data.accel.x);
+        accelData[2].push(data.accel.y);
+        accelData[3].push(data.accel.z);
+
+        if (accelData[0].length > 1000) {
+          for (let i = 0; i < 4; i++) accelData[i].shift();
+        }
+        accelPlot.setData(accelData);
+        accelPlot.setScale('x', { min: now - WINDOW_SECONDS, max: now });
+      }
+
+      if (data.orientation) {
+        orientData[0].push(now);
+        orientData[1].push(data.orientation.yaw);
+        orientData[2].push(data.orientation.pitch);
+        orientData[3].push(data.orientation.roll);
+
+        if (orientData[0].length > 1000) {
+          for (let i = 0; i < 4; i++) orientData[i].shift();
+        }
+        orientationPlot.setData(orientData);
+        orientationPlot.setScale('x', { min: now - WINDOW_SECONDS, max: now });
+      }
+
+      packetCount++;
+      const t = Date.now();
+      if (t - lastRateCheck >= 1000) {
+        document.getElementById('data-rate').innerText = packetCount + " Hz";
+        packetCount = 0;
+        lastRateCheck = t;
+      }
+
+      if (data.fifoCount !== undefined) {
+        document.getElementById('fifo-count').innerText = data.fifoCount;
+      }
+      if (data.recording !== undefined) {
+        const el = document.getElementById('recording-status');
+        el.innerText = data.recording ? "REC" : "STOP";
+        el.style.color = data.recording ? "red" : "black";
+      }
+    }
+
+    function connectToStream() {
+      if (eventSource) eventSource.close();
+
+      eventSource = new EventSource('/events');
+
+      eventSource.addEventListener('open', (e) => {
+        document.getElementById('connection-status').className = 'connection-status connected';
+        document.getElementById('connection-status').innerText = 'Connected';
+      });
+
+      eventSource.addEventListener('error', (e) => {
+        if (eventSource.readyState !== EventSource.CLOSED) {
+          document.getElementById('connection-status').className = 'connection-status disconnected';
+          document.getElementById('connection-status').innerText = 'Reconnecting...';
+        }
+      });
+
+      eventSource.onmessage = (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            updatePlots(data);
+        } catch (err) { }
+      };
+      
+      eventSource.addEventListener('sensor_data', (e) => {
+          try { updatePlots(JSON.parse(e.data)); } catch(err){}
+      });
+    }
+
+    // Resize Handler
+    window.addEventListener('resize', () => {
+      if(accelPlot && orientationPlot) {
+        // Debounce slightly to prevent thrashing
+        const dims = getSize('accel-plot');
+        accelPlot.setSize(dims);
+        orientationPlot.setSize(dims); 
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initPlots();
+      connectToStream();
+    });
+  </script>
+</body>
+</html>

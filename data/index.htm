@@ -1,0 +1,272 @@
+<!DOCTYPE HTML><html>
+<head>
+  <title>MPU6050 Data Logger</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial; text-align: center; margin: 20px; background-color: #f2f2f2; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .value { font-size: 1.5rem; color: #0275d8; font-weight: bold; }
+    .label { font-size: 0.9rem; color: #666; }
+    .status { padding: 10px; border-radius: 4px; margin: 5px 0; }
+    .status.calibrated { background-color: #d4edda; color: #155724; }
+    .status.recording { background-color: #f8d7da; color: #721c24; }
+    .status.generating { background-color: #fff3cd; color: #856404; }
+    .status.success { background-color: #d1ecf1; color: #0c5460; }
+    .status.error { background-color: #f8d7da; color: #721c24; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+    .button { 
+      background-color: #007bff; 
+      color: white; 
+      border: none; 
+      padding: 10px 20px; 
+      margin: 5px; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .button:hover { background-color: #0056b3; }
+    .button:disabled { 
+      background-color: #6c757d; 
+      cursor: not-allowed; 
+    }
+    .progress {
+      width: 100%;
+      height: 20px;
+      background-color: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #007bff;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <h1>MPU6050 Data Logger</h1>
+  
+  <div class="container">
+    <div class="card">
+      <h3>System Status</h3>
+      <div id="calibrated" class="status">Calibration: <span id="calibrated-status">Checking...</span></div>
+      <div id="recording" class="status">Recording: <span id="recording-status">Checking...</span></div>
+      <div>FIFO Count: <span id="fifo-count" class="value">0</span></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Acceleration (G)</h3>
+        <p><span class="label">X:</span> <span id="accel-x" class="value">0.00</span></p>
+        <p><span class="label">Y:</span> <span id="accel-y" class="value">0.00</span></p>
+        <p><span class="label">Z:</span> <span id="accel-z" class="value">0.00</span></p>
+      </div>
+
+      <div class="card">
+        <h3>Gyros (degrees/sec)</h3>
+        <p><span class="label">Yaw:</span> <span id="yaw" class="value">0.0</span></p>
+        <p><span class="label">Pitch:</span> <span id="pitch" class="value">0.0</span></p>
+        <p><span class="label">Roll:</span> <span id="roll" class="value">0.0</span></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Data Visualization</h3>
+      <a href="stream.html" class="button">Real-time Stream</a>
+      <a href="viewer.html" class="button">Historical Viewer</a>
+    </div>
+
+    <div class="card">
+      <h3>File Management</h3>
+      <p><a href="/api/files">View Data Files</a></p>
+      <p><a href="/api/status">System Status</a></p>
+      <p><a href="/api/settings">Settings</a></p>
+    </div>
+
+    <div class="card">
+      <h3>Test Data Generation</h3>
+      <button class="button" onclick="generateTestData('motion')" id="motion-btn">Generate Motion Test (60s)</button>
+      <button class="button" onclick="generateTestData('static')" id="static-btn">Generate Static Test (30s)</button>
+      <button class="button" onclick="generateTestData('combined')" id="combined-btn">Generate Combined Test (61s)</button>
+      <div class="progress" id="test-progress" style="display: none;">
+        <div class="progress-bar" id="test-progress-bar"></div>
+      </div>
+      <div id="test-status" class="status">Ready to generate test data</div>
+    </div>
+  </div>
+
+<script>
+  // Real-time data streaming
+  if (!!window.EventSource) {
+    var source = new EventSource('/events');
+
+    source.addEventListener('open', function(e) { 
+      console.log("Events Connected"); 
+    }, false);
+    
+    source.addEventListener('error', function(e) { 
+      if (e.target.readyState != EventSource.OPEN) {
+        console.log("Events Disconnected"); 
+      }
+    }, false);
+
+    source.addEventListener('connect', function(e) {
+      console.log("Connected to streaming server");
+    }, false);
+
+    source.addEventListener('initial_data', function(e) {
+      updateDisplay(JSON.parse(e.data));
+    }, false);
+
+    source.addEventListener('sensor_data', function(e) {
+      updateDisplay(JSON.parse(e.data));
+    }, false);
+  } else {
+    console.log("EventSource not supported");
+  }
+
+  function updateDisplay(data) {
+    // Update acceleration values
+    if (data.accel) {
+      document.getElementById("accel-x").innerHTML = data.accel.x.toFixed(2);
+      document.getElementById("accel-y").innerHTML = data.accel.y.toFixed(2);
+      document.getElementById("accel-z").innerHTML = data.accel.z.toFixed(2);
+    }
+
+    // Update orientation values
+    if (data.orientation) {
+      document.getElementById("yaw").innerHTML = data.orientation.yaw.toFixed(1);
+      document.getElementById("pitch").innerHTML = data.orientation.pitch.toFixed(1);
+      document.getElementById("roll").innerHTML = data.orientation.roll.toFixed(1);
+    }
+
+    // Update status indicators
+    var calibratedEl = document.getElementById("calibrated");
+    var recordingEl = document.getElementById("recording");
+    var calibratedStatus = document.getElementById("calibrated-status");
+    var recordingStatus = document.getElementById("recording-status");
+
+    if (data.calibrated) {
+      calibratedEl.className = "status calibrated";
+      calibratedStatus.innerHTML = "Calibrated";
+    } else {
+      calibratedEl.className = "status";
+      calibratedStatus.innerHTML = "Not Calibrated";
+    }
+
+    if (data.recording) {
+      recordingEl.className = "status recording";
+      recordingStatus.innerHTML = "Recording";
+    } else {
+      recordingEl.className = "status";
+      recordingStatus.innerHTML = "Not Recording";
+    }
+
+    // Update FIFO count
+    if (data.fifoCount !== undefined) {
+      document.getElementById("fifo-count").innerHTML = data.fifoCount;
+    }
+  }
+
+  // Test data generation functions
+  function generateTestData(type) {
+    // Disable buttons during generation
+    setButtonsEnabled(false);
+    
+    // Show progress
+    showProgress();
+    updateTestStatus('Generating ' + type + ' test data...', 'generating');
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('type', type);
+    
+    // Make API request
+    fetch('/api/testdata/generate', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      hideProgress();
+      if (data.status === 'ok') {
+        updateTestStatus('Test data generated successfully: ' + data.filename, 'success');
+        // Refresh file list after a short delay
+        setTimeout(refreshFileList, 1000);
+      } else {
+        updateTestStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+      }
+    })
+    .catch(error => {
+      hideProgress();
+      updateTestStatus('Network error: ' + error.message, 'error');
+      console.error('Test data generation error:', error);
+    })
+    .finally(() => {
+      // Re-enable buttons
+      setButtonsEnabled(true);
+    });
+  }
+  
+  function setButtonsEnabled(enabled) {
+    const buttons = ['motion-btn', 'static-btn', 'combined-btn'];
+    buttons.forEach(id => {
+      document.getElementById(id).disabled = !enabled;
+    });
+  }
+  
+  function showProgress() {
+    document.getElementById('test-progress').style.display = 'block';
+    // Simulate progress since we don't have real progress updates
+    let progress = 0;
+    const progressBar = document.getElementById('test-progress-bar');
+    const interval = setInterval(() => {
+      progress += Math.random() * 15;
+      if (progress >= 90) {
+        progress = 90; // Cap at 90% until completion
+        clearInterval(interval);
+      }
+      progressBar.style.width = progress + '%';
+    }, 500);
+    
+    // Store interval ID for cleanup
+    window.progressInterval = interval;
+  }
+  
+  function hideProgress() {
+    if (window.progressInterval) {
+      clearInterval(window.progressInterval);
+    }
+    document.getElementById('test-progress-bar').style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('test-progress').style.display = 'none';
+      document.getElementById('test-progress-bar').style.width = '0%';
+    }, 500);
+  }
+  
+  function updateTestStatus(message, type) {
+    const statusEl = document.getElementById('test-status');
+    statusEl.className = 'status ' + type;
+    statusEl.innerHTML = message;
+  }
+  
+  function refreshFileList() {
+    // Force refresh of the file list by adding a timestamp
+    const filesLink = document.querySelector('a[href="/api/files"]');
+    if (filesLink) {
+      const originalHref = filesLink.href;
+      filesLink.href = originalHref + '?t=' + Date.now();
+      setTimeout(() => {
+        filesLink.href = originalHref;
+      }, 100);
+    }
+  }
+</script>
+</body>
+</html>
