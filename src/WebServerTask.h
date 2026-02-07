@@ -40,6 +40,13 @@ class WebServerTask : public Task {
     void handleMeta(AsyncWebServerRequest *request);
     void handleTestData(AsyncWebServerRequest *request);
     
+    // Recording control endpoints
+    void handleRecordStart(AsyncWebServerRequest *request);
+    void handleRecordStop(AsyncWebServerRequest *request);
+    
+    // Calibration control endpoint
+    void handleCalibrate(AsyncWebServerRequest *request);
+    
     // Static file serving
     void handleStaticFile(AsyncWebServerRequest *request, const String& filename);
     

@@ -9,11 +9,11 @@ WebStreamingTask::WebStreamingTask(MPUSensorTask& mpuSensor, DataLoggingTask& da
     dataLogger(dataLogger),
     events(nullptr),
     lastBroadcast(0),
-    broadcastInterval(200),
+    broadcastInterval(100),
     clientCount(0) {
   
   // Set the run interval for this specific task
-  runInterval = 200; // 200ms interval for real-time updates
+  runInterval = broadcastInterval;
   
   // Initialize client array
   for (int i = 0; i < MAX_CLIENTS; i++) {

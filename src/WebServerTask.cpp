@@ -110,6 +110,23 @@ void WebServerTask::setupRoutes() {
     handleTestData(request);
   });
   
+  // Recording control endpoints
+  server.on("/api/record/start", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    logRequest(request);
+    handleRecordStart(request);
+  });
+  
+  server.on("/api/record/stop", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    logRequest(request);
+    handleRecordStop(request);
+  });
+  
+  // Calibration control endpoint
+  server.on("/api/calibrate", HTTP_POST, [this](AsyncWebServerRequest *request) {
+    logRequest(request);
+    handleCalibrate(request);
+  });
+  
   // Static file serving
   server.on("/favicon.ico", HTTP_GET, [this](AsyncWebServerRequest *request) {
     logRequest(request);
@@ -277,7 +294,29 @@ void WebServerTask::handleStatus(AsyncWebServerRequest *request) {
   json += "\"freeHeap\":" + String(ESP.getFreeHeap()) + ",";
   json += "\"wifiMode\":\"AP\",";
   json += "\"apIp\":\"" + captivePortalIP.toString() + "\",";
-  json += "\"connectedClients\":" + String(WiFi.softAPgetStationNum());
+  json += "\"connectedClients\":" + String(WiFi.softAPgetStationNum()) + ",";
+  
+  // Calculate recording duration remaining
+  FSInfo fs_info;
+  if (SPIFFS.info(fs_info)) {
+    // Calculate available space for new recordings
+    size_t usedSpace = fs_info.usedBytes;
+    size_t totalSpace = fs_info.totalBytes;
+    size_t freeSpace = totalSpace - usedSpace;
+    
+    // Calculate how many records can fit in remaining space
+    size_t recordSize = MPULogRecord::getRecordSize();
+    size_t maxRecords = freeSpace / recordSize;
+    
+    // Convert to time based on sample rate (convert to seconds)
+    uint32_t sampleRateMs = settings.sampleRateMs;
+    uint32_t remainingDurationSeconds = (maxRecords * sampleRateMs) / 1000;
+    
+    json += "\"recordingDurationRemaining\":" + String(remainingDurationSeconds);
+  } else {
+    json += "\"recordingDurationRemaining\":0";
+  }
+  
   json += "}";
   
   sendJsonResponse(request, json);
@@ -443,4 +482,48 @@ void WebServerTask::sendErrorResponse(AsyncWebServerRequest *request, int code, 
   Serial.print(F(": "));
   Serial.println(message);
   request->send(code, "application/json", json);
+}
+
+void WebServerTask::handleRecordStart(AsyncWebServerRequest *request) {
+  // Start recording via DataLoggingTask
+  dataLoggingTask.startRecording();
+  
+  // Return response with current state
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Recording started\",";
+  json += "\"recording\":" + String(dataLoggingTask.isRecording() ? "true" : "false");
+  json += "}";
+  
+  sendJsonResponse(request, json);
+  Serial.println(F("WEB CONTROL: Recording started via web interface"));
+}
+
+void WebServerTask::handleRecordStop(AsyncWebServerRequest *request) {
+  // Stop recording via DataLoggingTask
+  dataLoggingTask.stopRecording();
+  
+  // Return response with current state
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Recording stopped\",";
+  json += "\"recording\":" + String(dataLoggingTask.isRecording() ? "true" : "false");
+  json += "}";
+  
+  sendJsonResponse(request, json);
+  Serial.println(F("WEB CONTROL: Recording stopped via web interface"));
+}
+
+void WebServerTask::handleCalibrate(AsyncWebServerRequest *request) {
+  // Start calibration via MPUSensorTask
+  mpusensorTask.startCalibration();
+  
+  // Return response
+  String json = "{";
+  json += "\"status\":\"ok\",";
+  json += "\"message\":\"Calibration started\"";
+  json += "}";
+  
+  sendJsonResponse(request, json);
+  Serial.println(F("WEB CONTROL: Calibration started via web interface"));
 }
