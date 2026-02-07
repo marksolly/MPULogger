@@ -42,6 +42,101 @@ class MPULogDecoder {
   }
 }
 
+// Helper function to calculate optimal Y-axis range with proper rounding
+function calculateOptimalYRange(dataSeries) {
+  if (!dataSeries || dataSeries.length === 0) {
+    return { min: 0, max: 1 };
+  }
+
+  // Find the true min and max values across all series
+  let globalMin = Infinity;
+  let globalMax = -Infinity;
+  
+  dataSeries.forEach(series => {
+    if (!series || series.length === 0) return;
+    
+    const seriesMin = Math.min(...series);
+    const seriesMax = Math.max(...series);
+    
+    if (seriesMin < globalMin) globalMin = seriesMin;
+    if (seriesMax > globalMax) globalMax = seriesMax;
+  });
+
+  // If all values are the same, create a small range around that value
+  if (Math.abs(globalMax - globalMin) < 0.001) {
+    const center = globalMin;
+    const padding = Math.max(1, Math.abs(center) * 0.1);
+    return { 
+      min: roundToNice(center - padding), 
+      max: roundToNice(center + padding) 
+    };
+  }
+
+  // Check if data spans both positive and negative values (bidirectional)
+  const hasPositiveValues = globalMax > 0;
+  const hasNegativeValues = globalMin < 0;
+  
+  if (hasPositiveValues && hasNegativeValues) {
+    // For bidirectional data, create symmetric range around zero
+    const maxAbsValue = Math.max(Math.abs(globalMin), Math.abs(globalMax));
+    
+    // Add 10% padding to the maximum absolute value
+    const paddedMaxAbs = maxAbsValue * 1.1;
+    
+    // Apply nice rounding and create symmetric range
+    const niceMax = roundToNice(paddedMaxAbs);
+    
+    return {
+      min: -niceMax,
+      max: niceMax
+    };
+  } else {
+    // For unidirectional data, use asymmetric range with padding
+    const range = globalMax - globalMin;
+    const padding = range * 0.1;
+    
+    const minWithPadding = globalMin - padding;
+    const maxWithPadding = globalMax + padding;
+
+    return {
+      min: roundToNice(minWithPadding),
+      max: roundToNice(maxWithPadding)
+    };
+  }
+}
+
+// Helper function to round to "nice" numbers for clean grid lines
+function roundToNice(value) {
+  const absValue = Math.abs(value);
+  
+  if (absValue === 0) return 0;
+  
+  // Determine the order of magnitude
+  const exponent = Math.floor(Math.log10(absValue));
+  const base = Math.pow(10, exponent);
+  
+  // Normalize the value to 1-10 range
+  const normalized = absValue / base;
+  
+  // Find the nearest "nice" multiple (1, 2, 5, or 10)
+  let niceMultiple;
+  if (normalized <= 1.5) {
+    niceMultiple = 1;
+  } else if (normalized <= 3) {
+    niceMultiple = 2;
+  } else if (normalized <= 7) {
+    niceMultiple = 5;
+  } else {
+    niceMultiple = 10;
+  }
+  
+  // Calculate the nice rounded value
+  const niceValue = niceMultiple * base;
+  
+  // Apply the correct sign
+  return value < 0 ? -niceValue : niceValue;
+}
+
 // Global variables
 let decoder = new MPULogDecoder();
 let currentData = null;
@@ -424,6 +519,9 @@ function getSize(elementId) {
 function initPlots(data) {
   const dims = getSize('accel-plot');
 
+  // Calculate auto-scaled Y-axis range for acceleration data
+  const accelRange = calculateOptimalYRange([data.accelX, data.accelY, data.accelZ]);
+
   // Acceleration plot
   accelPlot = new uPlot({
     width: dims.width,
@@ -433,7 +531,7 @@ function initPlots(data) {
         time: false
       },
       y: {
-        range: [-10, 10],
+        range: [accelRange.min, accelRange.max],
         align: 1
       }
     },
@@ -490,6 +588,9 @@ function initPlots(data) {
     data.accelZ
   ], document.getElementById('accel-plot'));
 
+  // Calculate auto-scaled Y-axis range for orientation data
+  const orientationRange = calculateOptimalYRange([data.yaw, data.pitch, data.roll]);
+
   // Orientation plot
   orientationPlot = new uPlot({
     width: dims.width,
@@ -499,7 +600,7 @@ function initPlots(data) {
         time: false
       },
       y: {
-        range: [-180, 180],
+        range: [orientationRange.min, orientationRange.max],
         align: 1
       }
     },
@@ -560,6 +661,16 @@ function initPlots(data) {
 // Update existing plots with new data
 function updatePlots(data) {
   if (accelPlot) {
+    // Calculate new Y-axis range for acceleration data
+    const accelRange = calculateOptimalYRange([data.accelX, data.accelY, data.accelZ]);
+    
+    // Update the Y-axis scale
+    accelPlot.setScale('y', {
+      min: accelRange.min,
+      max: accelRange.max
+    });
+    
+    // Update the data
     accelPlot.setData([
       data.relativeTime,
       data.accelX,
@@ -569,6 +680,16 @@ function updatePlots(data) {
   }
   
   if (orientationPlot) {
+    // Calculate new Y-axis range for orientation data
+    const orientationRange = calculateOptimalYRange([data.yaw, data.pitch, data.roll]);
+    
+    // Update the Y-axis scale
+    orientationPlot.setScale('y', {
+      min: orientationRange.min,
+      max: orientationRange.max
+    });
+    
+    // Update the data
     orientationPlot.setData([
       data.relativeTime,
       data.yaw,
