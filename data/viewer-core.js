@@ -320,6 +320,7 @@ function updateLocalFileControls(fileLoaded, isLocalFile = false) {
   
   // Enable/disable other controls based on file loaded state
   document.getElementById('download-btn').disabled = !fileLoaded;
+  document.getElementById('download-csv-btn').disabled = !fileLoaded;
   document.getElementById('local-load-btn').disabled = fileLoaded;
   
   if (!fileLoaded) {
@@ -409,6 +410,7 @@ async function loadSelectedFile() {
     updateStatus(`Successfully loaded ${decodedData.records.length} records from ${filename}`, 'success');
     document.getElementById('delete-btn').disabled = false;
     document.getElementById('download-btn').disabled = false;
+    document.getElementById('download-csv-btn').disabled = false;
     
   } catch (error) {
     updateStatus('Error loading file: ' + error.message, 'error');
@@ -837,6 +839,62 @@ function downloadAsJSON() {
   updateStatus(`Downloaded ${exportData.length} records as JSON`, 'success');
 }
 
+// CSV download function
+function downloadAsCSV() {
+  if (!currentData) return;
+
+  // Use current file name (works for both server and local files)
+  const filename = currentLocalFileName || document.getElementById('file-select').value;
+  
+  // Always export all records (same as JSON export behavior)
+  const records = currentData.records;
+  
+  if (records.length === 0) {
+    updateStatus('No data available to export', 'warning');
+    return;
+  }
+
+  // Convert timestamps to relative time for CSV export
+  const timestamps = records.map(r => r.timestamp);
+  const relativeTime = convertToRelativeTime(timestamps);
+
+  // Build CSV content with header row
+  let csvContent = 'Time (s),Delay (s),Accel X (G),Accel Y (G),Accel Z (G),Yaw (°),Pitch (°),Roll (°),Flags\n';
+  
+  // Add data rows
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i];
+    const interSampleDelay = i === 0 ? 0.000 : (timestamps[i] - timestamps[i - 1]) / 1000;
+    
+    const row = [
+      relativeTime[i].toFixed(3),                    // Time (s) - 3 decimal places
+      interSampleDelay.toFixed(3),                    // Delay (s) - 3 decimal places
+      record.accel_x.toFixed(4),                      // Accel X (G) - 4 decimal places
+      record.accel_y.toFixed(4),                      // Accel Y (G) - 4 decimal places
+      record.accel_z.toFixed(4),                      // Accel Z (G) - 4 decimal places
+      record.yaw.toFixed(2),                          // Yaw (°) - 2 decimal places
+      record.pitch.toFixed(2),                        // Pitch (°) - 2 decimal places
+      record.roll.toFixed(2),                         // Roll (°) - 2 decimal places
+      record.flags                                     // Flags - integer
+    ];
+    
+    csvContent += row.join(',') + '\n';
+  }
+
+  // Create and download CSV file
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.replace('.bin', '_data.csv');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  updateStatus(`Downloaded ${records.length} records as CSV`, 'success');
+}
+
 // Utility functions
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
@@ -904,6 +962,7 @@ function clearCharts() {
   document.getElementById('table-btn').disabled = true;
   document.getElementById('chart-btn').disabled = true;
   document.getElementById('download-btn').disabled = true;
+  document.getElementById('download-csv-btn').disabled = true;
   document.getElementById('download-bin-btn').disabled = true;
   
   // Reset local file controls
