@@ -317,6 +317,11 @@ void WebServerTask::handleStatus(AsyncWebServerRequest *request) {
     json += "\"recordingDurationRemaining\":0";
   }
   
+  // Add CPU utilization
+  extern float cpuUtilization;
+  json += ",";
+  json += "\"cpuUtilization\":" + String(cpuUtilization, 1);
+  
   json += "}";
   
   sendJsonResponse(request, json);

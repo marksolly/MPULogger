@@ -63,6 +63,7 @@
       <div id="calibrated" class="status">Calibration: <span id="calibrated-status">Checking...</span></div>
       <div id="recording" class="status">Recording: <span id="recording-status">Checking...</span></div>
       <div>FIFO Count: <span id="fifo-count" class="value">0</span></div>
+      <div>CPU Utilization: <span id="cpu-utilization" class="value">0%</span></div>
       <div>Recording Time Remaining: <span id="recording-duration-remaining" class="value">Calculating...</span></div>
     </div>
 
@@ -241,7 +242,7 @@
     }
   }
 
-  // Function to update recording duration remaining
+  // Function to update recording duration remaining and CPU utilization
   function updateRecordingDuration() {
     fetch('/api/status')
       .then(response => response.json())
@@ -250,10 +251,17 @@
           const durationEl = document.getElementById("recording-duration-remaining");
           durationEl.innerHTML = formatDuration(data.recordingDurationRemaining);
         }
+        
+        // Update CPU utilization
+        if (data.cpuUtilization !== undefined) {
+          const cpuEl = document.getElementById("cpu-utilization");
+          cpuEl.innerHTML = data.cpuUtilization.toFixed(1) + "%";
+        }
       })
       .catch(error => {
         console.error('Error fetching recording duration:', error);
         document.getElementById("recording-duration-remaining").innerHTML = "Error";
+        document.getElementById("cpu-utilization").innerHTML = "Error";
       });
   }
 
